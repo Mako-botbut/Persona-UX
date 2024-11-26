@@ -97,14 +97,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 
 // Eliminar un usuario existente
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
-    // Obtén el ID del usuario a eliminar desde los parámetros de la URL
-    parse_str(file_get_contents("php://input"), $data);
+    // Leer el cuerpo de la solicitud como JSON
+    $data = json_decode(file_get_contents("php://input"), true);
     $id = $data['id'] ?? null;
 
     if ($id) {
+        // Preparar la consulta para marcar como inactivo
         $query = "UPDATE usuario SET estado = 'inactivo' WHERE id = :id";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param(":id", $id);
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
         if ($stmt->execute()) {
             echo json_encode(["message" => "Usuario marcado como inactivo"]);
@@ -116,5 +117,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     }
 }
 
+// Reactivar un usuario existente
+if ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
+    // Leer el cuerpo de la solicitud como JSON
+    $data = json_decode(file_get_contents("php://input"), true);
+    $id = $data['id'] ?? null;
 
+    if ($id) {
+        // Preparar la consulta para marcar como activo
+        $query = "UPDATE usuario SET estado = 'activo' WHERE id = :id";
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+
+        if ($stmt->execute()) {
+            echo json_encode(["message" => "Usuario reactivado con éxito"]);
+        } else {
+            echo json_encode(["error" => "Error al reactivar el usuario"]);
+        }
+    } else {
+        echo json_encode(["error" => "ID de usuario no proporcionado"]);
+    }
+}
 ?>

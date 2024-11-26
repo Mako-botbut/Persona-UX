@@ -26,11 +26,11 @@ async function fetchUsers() {
             <p><strong>Motivaciones:</strong> ${user.motivaciones}</p>
             <p><strong>Frustraciones:</strong> ${user.frustraciones}</p>
             <p><strong>Contacto:</strong> ${user.contacto}</p>
-            <p><button class="delete-btn" data-id="ID_DEL_USUARIO">Eliminar</button></p>
+            <p><button class="delete-btn" data-id="${user.id}">Eliminar</button></p>
         `;
         userCard.addEventListener('click', () => setupUpdateForm(user)); // Llenar el formulario al hacer clic
         userContainer.appendChild(userCard);
-    });
+    });    
     
 }
 
@@ -117,6 +117,40 @@ function setupUpdateForm(user) {
     document.getElementById('updateContacto').value = user.contacto;
 }
 
+// Función para eliminar usuario
+const deleteUser = async (id) => {
+    try {
+        const response = await fetch(`${API_URL}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },  // Cambiar a application/json
+            body: JSON.stringify({ id: id }),  // Pasar el ID como JSON
+        });
+
+        if (!response.ok) {
+            // Manejar errores HTTP
+            const errorText = await response.text();
+            console.error("Error del servidor:", errorText);
+            alert("Error al eliminar el usuario: " + errorText);
+            return;
+        }
+
+        // Intentar convertir la respuesta a JSON
+        const result = await response.json();
+
+        if (result.message) {
+            alert(result.message); // Mostrar mensaje de éxito
+            fetchUsers(); // Actualiza la lista de usuarios
+        } else if (result.error) {
+            alert("Error al eliminar el usuario: " + result.error);
+        } else {
+            alert("Respuesta desconocida del servidor.");
+        }
+    } catch (error) {
+        console.error("Error en la petición:", error);
+        alert("Ocurrió un error al intentar eliminar el usuario.");
+    }
+};
+
 document.addEventListener("click", (event) => {
     if (event.target.classList.contains("delete-btn")) {
         const userId = event.target.getAttribute("data-id");
@@ -125,30 +159,6 @@ document.addEventListener("click", (event) => {
         }
     }
 });
-
-//Funcion para eliminar usuario
-const deleteUser = async (id) => {
-    try {
-        const response = await fetch(`${API_URL}`, {
-            method: "DELETE",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: `id=${id}`,
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            alert(result.message);
-            fetchUsers(); // Actualiza la lista de usuarios
-        } else {
-            alert(result.error || "Error al eliminar el usuario");
-        }
-    } catch (error) {
-        console.error("Error:", error);
-    }
-};
-
-
 // Event Listener para el formulario
 document.getElementById("user-form").addEventListener("submit", addUser);
 
