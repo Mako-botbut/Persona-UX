@@ -1,34 +1,65 @@
 <?php
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE");
 header("Content-Type: application/json; charset=UTF-8");
+
 include_once "../config/database.php";
 
 $database = new Database();
 $db = $database->getConnection();
 
-// Obtener todos los usuarios activos
+// Obtener usuarios
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $stmt = $db->prepare("SELECT u.id, u.nombre, u.edad, u.ocupacion, u.ubicacion, 
-        dp.metas, dp.motivaciones, dp.frustraciones, dp.contacto
-        FROM usuario u
-        LEFT JOIN detalles_persona dp ON u.id = dp.id_usuario
-        WHERE u.estado = 'activo'"); // Filtrar solo usuarios activos
-    $stmt->execute();
+    $id = isset($_GET['id']) ? intval($_GET['id']) : null;
 
-    $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    echo json_encode($usuarios);
+    if ($id) {
+        // Obtener un usuario específico por ID
+        $stmt = $db->prepare("SELECT u.id, u.nombre, u.edad, u.ocupacion, u.ubicacion, 
+            dp.metas, dp.motivaciones, dp.frustraciones, dp.contacto
+            FROM usuario u
+            LEFT JOIN detalles_persona dp ON u.id = dp.id_usuario
+            WHERE u.id = :id AND u.estado = 'activo'");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($usuario) {
+            echo json_encode($usuario);
+        } else {
+            echo json_encode(["error" => "Usuario no encontrado o inactivo."]);
+        }
+    } else {
+        // Obtener todos los usuarios activos
+        $stmt = $db->prepare("SELECT u.id, u.nombre, u.edad, u.ocupacion, u.ubicacion, 
+            dp.metas, dp.motivaciones, dp.frustraciones, dp.contacto
+            FROM usuario u
+            LEFT JOIN detalles_persona dp ON u.id = dp.id_usuario
+            WHERE u.estado = 'activo'");
+        $stmt->execute();
+
+        $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode($usuarios);
+    }
 }
 
 // Agregar un nuevo usuario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
+    $email = $data['email'];
+    $password = password_hash($data['password'], PASSWORD_DEFAULT);
+    $rol = $data['rol'] ?? 'usuario';
 
     // Insertar en la tabla usuario
-    $stmt = $db->prepare("INSERT INTO usuario (nombre, edad, ocupacion, ubicacion) 
-        VALUES (:nombre, :edad, :ocupacion, :ubicacion)");
+    $stmt = $db->prepare("INSERT INTO usuario (nombre, edad, ocupacion, ubicacion, email, password, rol) 
+        VALUES (:nombre, :edad, :ocupacion, :ubicacion, :email, :password, :rol)");
     $stmt->bindParam(":nombre", $data['nombre']);
     $stmt->bindParam(":edad", $data['edad']);
     $stmt->bindParam(":ocupacion", $data['ocupacion']);
     $stmt->bindParam(":ubicacion", $data['ubicacion']);
+    $stmt->bindParam(":email", $data['email']);
+    $stmt->bindParam(":password", password_hash($data['password'], PASSWORD_DEFAULT));
+    $stmt->bindParam(":rol", $data['rol']);
 
     if ($stmt->execute()) {
         $userId = $db->lastInsertId();
@@ -46,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmtDetails->execute()) {
             echo json_encode(["message" => "Usuario agregado exitosamente."]);
         } else {
-            echo json_encode(["message" => "Error al agregar detalles del usuario."]);
+            echo json_encode(["message" => "Error al agregar el usuario. " . $stmt->errorInfo()]);
         }
     } else {
         echo json_encode(["message" => "Error al agregar el usuario."]);

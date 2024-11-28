@@ -19,29 +19,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Preparar la consulta
-    $query = "SELECT id, password, rol FROM usuario WHERE email = :email";
-    $stmt = $conn->prepare($query);
+    try {
+        $query = "SELECT id, password, rol FROM usuario WHERE email = :email";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':email', $email);
     
-    // Vincular parámetros y ejecutar la consulta
-    $stmt->bindParam(':email', $email);
-    $stmt->execute();
-
-    if ($stmt->rowCount() > 0) {
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        // Verificar la contraseña
-        if (password_verify($password, $user['password'])) {
-            // Almacenar datos en la sesión
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['user_rol'] = $user['rol'];
-            echo json_encode(["success" => "Inicio de sesión exitoso."]);
+        $stmt->execute();
+    
+        if ($stmt->rowCount() > 0) {
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+            if ($password === $user['password']) {
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['user_rol'] = $user['rol'];
+                echo json_encode(["success" => "Inicio de sesión exitoso."]);
+            } else {
+                http_response_code(401); // Código de no autorizado
+                echo json_encode(["error" => "Contraseña incorrecta."]);
+            }
         } else {
-            echo json_encode(["error" => "Contraseña incorrecta."]);
+            http_response_code(404); // Código de no encontrado
+            echo json_encode(["error" => "El usuario no existe."]);
         }
-    } else {
-        echo json_encode(["error" => "El usuario no existe."]);
+    } catch (PDOException $e) {
+        http_response_code(500); // Código de error interno del servidor
+        echo json_encode(["error" => "Error en el servidor: " . $e->getMessage()]);
     }
-} else {
-    echo json_encode(["error" => "Método no permitido."]);
 }
 ?>
